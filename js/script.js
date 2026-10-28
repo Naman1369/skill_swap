@@ -98,18 +98,54 @@
   });
 
   /* ---------- Avatar preview ---------- */
+  // Photos are stored in the database, so the browser shrinks them to at most 512 px (JPEG) before upload.
+  // If anything goes wrong the original file is sent and the server applies its own size limit.
+  function shrinkImage(file, maxSide) {
+    return new Promise(function (resolve) {
+      var source = new Image();
+      var url = URL.createObjectURL(file);
+      source.onload = function () {
+        URL.revokeObjectURL(url);
+        var scale = Math.min(1, maxSide / Math.max(source.width, source.height));
+        var canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(source.width * scale));
+        canvas.height = Math.max(1, Math.round(source.height * scale));
+        var ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff'; // JPEG has no transparency
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob(function (blob) {
+          resolve(blob ? new File([blob], 'photo.jpg', { type: 'image/jpeg' }) : file);
+        }, 'image/jpeg', 0.85);
+      };
+      source.onerror = function () { URL.revokeObjectURL(url); resolve(file); };
+      source.src = url;
+    });
+  }
+
   var avatarInput = document.querySelector('[data-avatar-input]');
   var avatarPreview = document.querySelector('[data-avatar-preview]');
   if (avatarInput && avatarPreview && window.URL) {
     avatarInput.addEventListener('change', function () {
       var file = avatarInput.files && avatarInput.files[0];
       if (!file || !/^image\/(jpeg|png|webp)$/.test(file.type)) return;
-      var img = document.createElement('img');
-      img.className = 'avatar avatar--xl';
-      img.alt = 'New profile photo preview';
-      img.src = URL.createObjectURL(file);
-      avatarPreview.innerHTML = '';
-      avatarPreview.appendChild(img);
+
+      var canResize = window.DataTransfer && window.File && HTMLCanvasElement.prototype.toBlob;
+      (canResize ? shrinkImage(file, 512) : Promise.resolve(file)).then(function (result) {
+        if (result !== file) {
+          try {
+            var transfer = new DataTransfer();
+            transfer.items.add(result);
+            avatarInput.files = transfer.files;
+          } catch (e) { result = file; }
+        }
+        var img = document.createElement('img');
+        img.className = 'avatar avatar--xl';
+        img.alt = 'New profile photo preview';
+        img.src = URL.createObjectURL(result);
+        avatarPreview.innerHTML = '';
+        avatarPreview.appendChild(img);
+      });
     });
   }
 

@@ -8,8 +8,7 @@ RUN docker-php-ext-install pdo_mysql \
 # Container-friendly defaults. The platform injects PORT at run time (Railway, Render, Fly.io...).
 ENV APP_ENV=production \
     TRUST_PROXY=1 \
-    PORT=8080 \
-    UPLOAD_DIR=/data/avatars
+    PORT=8080
 
 COPY docker/php.ini /usr/local/etc/php/conf.d/zz-skillswap.ini
 COPY docker/apache.conf /etc/apache2/conf-available/skillswap.conf
@@ -25,8 +24,7 @@ COPY . .
 # Not needed (and not wanted) at run time.
 RUN rm -rf docker router.php docs README.md .htaccess \
  && sed -i 's/\r$//' /var/www/html/database/*.php \
- && mkdir -p /data/avatars \
- && chown -R www-data:www-data /data /var/www/html
+ && chown -R www-data:www-data /var/www/html
 
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN sed -i 's/\r$//' /usr/local/bin/entrypoint.sh && chmod +x /usr/local/bin/entrypoint.sh

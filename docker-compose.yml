@@ -36,9 +36,6 @@ services:
       ADMIN_PASSWORD: local-admin-pass-123
       ADMIN_NAME: Local Admin
       SEED_DEMO: "1"
-    volumes:
-      - avatars:/data/avatars
 
 volumes:
   dbdata:
-  avatars:

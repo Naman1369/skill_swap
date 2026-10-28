@@ -28,8 +28,4 @@ else
   echo "ADMIN_EMAIL / ADMIN_PASSWORD not set: no admin account will be created automatically." >&2
 fi
 
-# 4. Upload folder (a mounted volume arrives owned by root).
-mkdir -p "$UPLOAD_DIR"
-chown www-data:www-data "$UPLOAD_DIR" 2>/dev/null || true
-
 exec "$@"

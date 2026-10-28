@@ -118,7 +118,7 @@ Execution: the functional, request, security and RBAC cases were run as an autom
 | RBAC-09 | Promote / demote | Promote a student, open `admin.php` with their existing session, then demote | 200 straight after promotion, 403 straight after demotion | Promoted Isha: her existing session can open admin.php at once; after demotion she gets 403 again (role is read from the database on every request) | ✅ Pass |
 | RBAC-10 | Admin cannot modify own account | Admin tries to suspend, demote and delete themselves | All refused; account unchanged | Suspend, demote and delete on your own account are all refused; admin unchanged | ✅ Pass |
 | RBAC-11 | Another admin must be demoted first | Admin tries to suspend / delete another admin | Refused: "Remove the admin role … first" | Another admin cannot be suspended or deleted directly: "Remove the admin role … first" (demote, then act) | ✅ Pass |
-| RBAC-12 | Delete user | Admin deletes a student who has a skill and a photo | Account, profile, skills and photo file are gone | Deleting a user removes the account, profile, skills (cascade) and the photo file | ✅ Pass |
+| RBAC-12 | Delete user | Admin deletes a student who has a skill and a photo | Account, profile, skills and photo are gone | Deleting a user removes the account, profile, skills (cascade) and the photo (stored in the profile row) | ✅ Pass |
 | RBAC-13 | Remove a listing | Admin removes a skill listing | Row deleted; audit entry names the skill and owner | Admin removed a listing; audit detail: "Mobile Photography" by Kabir Mehta | ✅ Pass |
 | RBAC-14 | Admin forms are CSRF protected | POST admin actions without a token | HTTP 400; nothing changes | Admin POSTs without a CSRF token are rejected (HTTP 400); nothing changed | ✅ Pass |
 | RBAC-15 | Audit trail | Open the admin overview after the actions above | Every action listed with the admin's name | Admin overview shows the audit trail: suspend, reactivate, promote, demote, delete user, delete skill, with the admin name | ✅ Pass |
@@ -137,6 +137,20 @@ Execution: the functional, request, security and RBAC cases were run as an autom
 | SEC-16 | Abuse limits | Add a 51st skill; send a 21st request within an hour | Both refused with a clear message | Per-user caps: 51st skill refused ("limit of 50 skills"); 21st exchange request in an hour refused | ✅ Pass |
 | SEC-17 | Admin search is XSS-safe | Search for `<script>alert(1)</script>` in the admin area | Shown as text | Search text reflected in the admin page is escaped | ✅ Pass |
 
+## Stateless hosting (free hosts that wipe the server disk, e.g. Render)
+
+The app container was destroyed and recreated (`docker compose up --force-recreate`) to simulate a free-tier host waking up with an empty filesystem.
+
+| ID | Scenario | Steps | Expected result | Actual result | Status |
+|---|---|---|---|---|---|
+| STATE-01 | Login survives a container replacement | Log in, replace the app container, reuse the same session cookie | Still logged in | Dashboard returned HTTP 200 with the same cookie after the container was replaced (sessions are rows in the `sessions` table) | ✅ Pass |
+| STATE-02 | Photo survives a container replacement | Upload a photo, replace the container, fetch the photo | Photo still served | `avatar.php` returned the identical bytes as `image/png` | ✅ Pass |
+| STATE-03 | Nothing is written to the app's disk | Upload a photo, list the container's upload folder | No file; bytes are in the database | 0 files on disk; `avatar_data` holds the image bytes | ✅ Pass |
+| STATE-04 | Photo caching and unknown names | Revalidate with `If-None-Match`; request a non-existent name | 304; 404 that is not cached | 304 Not Modified; 404 with `Cache-Control: no-store` | ✅ Pass |
+| STATE-05 | Size limit without JavaScript | POST a ~1.1 MB image directly | Refused by the server | "Photo must be 1 MB or smaller." | ✅ Pass |
+| STATE-06 | Encrypted database connection | Connect with `DB_SSL=1`, and with a URL ending `?ssl-mode=REQUIRED`; compare with the default | TLS cipher in use; plain by default | `TLS_AES_256_GCM_SHA384` for both; empty cipher (plain) without the setting | ✅ Pass |
+| STATE-07 | Photos from older versions are kept | Put an old-style photo file + two photo records (one file missing), run `install.php` | File imported into the database; dangling record cleared | "photos moved to database: 1/2"; imported photo served; dangling record reset so the initials avatar shows | ✅ Pass |
+
 ## Responsive / UI checks
 
 | ID | Check | Expected result | Actual result | Status |
@@ -148,4 +162,4 @@ Execution: the functional, request, security and RBAC cases were run as an autom
 | UI-04 | No CSP violations (production build) | Browse guest pages and every admin page in a real browser with the console open | No console errors or CSP violations; theme, menu, validation, confirm dialogs all still work | 0 console errors / CSP violations on 9 pages; inline theme script applied via nonce; confirm dialog intercepted a destructive click | ✅ Pass |
 | UI-05 | Admin pages on a phone (375 px) | Open admin overview, users, skills, change password | No horizontal scrolling of the page (tables scroll inside their card) | 0 px page overflow on all four | ✅ Pass |
 
-**Summary:** 84 / 84 passed.
+**Summary:** 91 / 91 passed.

@@ -47,13 +47,14 @@ if (is_post()) {
 
     // --- Optional profile photo ---
     $newAvatar = null;
+    $newPhoto = null;
     $upload = $_FILES['avatar'] ?? null;
     if ($upload && is_array($upload) && ($upload['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE) {
         $allowed = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'];
         if ($upload['error'] !== UPLOAD_ERR_OK) {
             $errors['avatar'] = 'The photo could not be uploaded. Please try a smaller image.';
         } elseif ($upload['size'] > AVATAR_MAX_BYTES) {
-            $errors['avatar'] = 'Photo must be 2 MB or smaller.';
+            $errors['avatar'] = 'Photo must be 1 MB or smaller.';
         } else {
             // Inspect the file contents, never trust the browser-supplied name or type.
             $info = @getimagesize($upload['tmp_name']);
@@ -62,56 +63,46 @@ if (is_post()) {
                 $errors['avatar'] = 'Photo must be a JPG, PNG or WebP image.';
             } else {
                 $newAvatar = bin2hex(random_bytes(16)) . '.' . $allowed[$mime];
+                $newPhoto = ['mime' => $mime, 'data' => (string) file_get_contents($upload['tmp_name'])];
             }
         }
     }
 
     if (!$errors) {
-        $avatar = $me['avatar'];
+        $pdo = db();
+        $pdo->beginTransaction();
+        $pdo->prepare('UPDATE users SET name = ? WHERE id = ?')->execute([$values['name'], $me['id']]);
+        $pdo->prepare(
+            'INSERT INTO profiles (user_id, course, year_of_study, college, bio, phone, contact_link)
+             VALUES (?, ?, ?, ?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE course = VALUES(course), year_of_study = VALUES(year_of_study),
+                 college = VALUES(college), bio = VALUES(bio), phone = VALUES(phone),
+                 contact_link = VALUES(contact_link)'
+        )->execute([
+            $me['id'],
+            $values['course'] ?: null,
+            $values['year_of_study'] ?: null,
+            $values['college'] ?: null,
+            $values['bio'] ?: null,
+            $values['phone'] ?: null,
+            $values['contact_link'] ?: null,
+        ]);
 
-        if ($newAvatar !== null) {
-            if (!is_dir(AVATAR_DIR)) {
-                mkdir(AVATAR_DIR, 0755, true);
-            }
-            if (!move_uploaded_file($_FILES['avatar']['tmp_name'], AVATAR_DIR . $newAvatar)) {
-                $errors['avatar'] = 'The photo could not be saved. Please try again.';
-            } else {
-                $avatar = $newAvatar;
-            }
+        // The photo lives in the database next to the profile, so replacing or removing it is just an update.
+        if ($newPhoto !== null) {
+            $stmt = $pdo->prepare('UPDATE profiles SET avatar = ?, avatar_mime = ?, avatar_data = ? WHERE user_id = ?');
+            $stmt->bindValue(1, $newAvatar);
+            $stmt->bindValue(2, $newPhoto['mime']);
+            $stmt->bindValue(3, $newPhoto['data'], PDO::PARAM_LOB);
+            $stmt->bindValue(4, $me['id'], PDO::PARAM_INT);
+            $stmt->execute();
         } elseif (!empty($_POST['remove_avatar'])) {
-            $avatar = null;
+            $pdo->prepare('UPDATE profiles SET avatar = NULL, avatar_mime = NULL, avatar_data = NULL WHERE user_id = ?')->execute([$me['id']]);
         }
+        $pdo->commit();
 
-        if (!$errors) {
-            $pdo = db();
-            $pdo->beginTransaction();
-            $pdo->prepare('UPDATE users SET name = ? WHERE id = ?')->execute([$values['name'], $me['id']]);
-            $pdo->prepare(
-                'INSERT INTO profiles (user_id, course, year_of_study, college, bio, phone, contact_link, avatar)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                 ON DUPLICATE KEY UPDATE course = VALUES(course), year_of_study = VALUES(year_of_study),
-                     college = VALUES(college), bio = VALUES(bio), phone = VALUES(phone),
-                     contact_link = VALUES(contact_link), avatar = VALUES(avatar)'
-            )->execute([
-                $me['id'],
-                $values['course'] ?: null,
-                $values['year_of_study'] ?: null,
-                $values['college'] ?: null,
-                $values['bio'] ?: null,
-                $values['phone'] ?: null,
-                $values['contact_link'] ?: null,
-                $avatar,
-            ]);
-            $pdo->commit();
-
-            // Remove the previous photo file once it is no longer used.
-            if ($me['avatar'] && $me['avatar'] !== $avatar && avatar_url($me['avatar']) !== null) {
-                @unlink(AVATAR_DIR . basename($me['avatar']));
-            }
-
-            flash('success', 'Your profile has been updated.');
-            redirect('profile.php');
-        }
+        flash('success', 'Your profile has been updated.');
+        redirect('profile.php');
     }
 }
 
@@ -140,7 +131,7 @@ require __DIR__ . '/includes/header.php';
                 <div class="form-group">
                     <label for="avatar">Upload a new photo</label>
                     <input id="avatar" name="avatar" type="file" accept="image/jpeg,image/png,image/webp" data-avatar-input<?= invalid_attr($errors, 'avatar') ?>>
-                    <p class="hint">JPG, PNG or WebP, up to 2 MB.</p>
+                    <p class="hint">JPG, PNG or WebP. Large photos are shrunk automatically before upload.</p>
                     <?= field_error($errors, 'avatar') ?>
                     <?php if (avatar_url($me['avatar']) !== null): ?>
                         <label class="checkbox"><input type="checkbox" name="remove_avatar" value="1"> Remove current photo</label>

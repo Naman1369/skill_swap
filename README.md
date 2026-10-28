@@ -4,7 +4,7 @@ A web platform where students list the skills they **can teach** and the skills 
 
 Built with **HTML, CSS, JavaScript, PHP 8 and MySQL** as a BCA Summer Internship Project (MIT School of Business & Computer Applications, Pune).
 
-**Deploying it for others to use?** See [docs/DEPLOY.md](docs/DEPLOY.md) (Docker image + Railway, step by step).
+**Deploying it for others to use?** See [docs/DEPLOY.md](docs/DEPLOY.md): free hosting on Render with a free Aiven MySQL, step by step (Railway and other Docker hosts work too). The app is stateless: sessions and profile photos are stored in MySQL, not on disk.
 
 ## Features
 
@@ -35,7 +35,8 @@ The role is read from the database on every request, so promoting, demoting or s
 - Server-side validation everywhere; ownership checks on skills and request status changes; role checks on every admin page and action
 - Database-backed rate limits (login per IP+email and per IP, sign-up, requests, password change) that cannot be bypassed by clearing cookies
 - Timing-safe login (same work whether or not the email exists), generic error messages
-- Uploads: validated by image content, random file names, served through `avatar.php` from a folder outside the web root in production
+- Profile photos: validated by image content, shrunk in the browser, stored in the database (nothing is written to the server's disk) and served through `avatar.php`
+- Sessions stored in the database, so logins survive restarts and redeploys
 - Errors are logged, never shown to visitors; sensitive folders and files (`includes/`, `database/`, Dockerfile, …) are not downloadable
 
 ## Project structure
@@ -56,7 +57,7 @@ SkillSwap/
 │   ├── install.php      Creates/upgrades tables (runs automatically in Docker)
 │   ├── create_admin.php Creates or promotes an admin
 │   └── seed.php         Demo data
-├── Dockerfile, docker/, docker-compose.yml, railway.json, .dockerignore
+├── Dockerfile, docker/, docker-compose.yml, render.yaml, railway.json, .dockerignore
 └── docs/DEPLOY.md, docs/TEST_CASES.md
 ```
 
@@ -71,6 +72,9 @@ SkillSwap/
 | `exchange_requests` | Sender → receiver request for a skill, optional offered skill, status |
 | `admin_audit` | Record of every admin action |
 | `rate_limits` | Counters behind the abuse limits (identifiers are hashed) |
+| `sessions` | PHP sessions (so the app needs no writable disk) |
+
+`profiles` also holds each student's photo (`avatar_data`).
 
 Request status flow: `pending → accepted | rejected | cancelled`, then `accepted → completed`.
 

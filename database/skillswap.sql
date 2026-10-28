@@ -19,6 +19,7 @@ CREATE DATABASE IF NOT EXISTS skillswap
 USE skillswap;
 
 SET FOREIGN_KEY_CHECKS = 0;
+DROP TABLE IF EXISTS sessions;
 DROP TABLE IF EXISTS rate_limits;
 DROP TABLE IF EXISTS admin_audit;
 DROP TABLE IF EXISTS exchange_requests;
@@ -58,8 +59,11 @@ CREATE TABLE IF NOT EXISTS profiles (
   phone         VARCHAR(20)   NULL,
   contact_link  VARCHAR(255)  NULL,
   avatar        VARCHAR(64)   NULL,
+  avatar_mime   VARCHAR(20)   NULL,
+  avatar_data   MEDIUMBLOB    NULL,
   updated_at    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (user_id),
+  KEY idx_profiles_avatar (avatar),
   CONSTRAINT fk_profiles_user FOREIGN KEY (user_id)
     REFERENCES users (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -144,6 +148,15 @@ CREATE TABLE IF NOT EXISTS rate_limits (
   created_at DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   KEY idx_rate_lookup (bucket, ident, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- sessions: PHP sessions live here, not on disk, so logins survive restarts and redeploys
+CREATE TABLE IF NOT EXISTS sessions (
+  id            VARCHAR(128)    NOT NULL,
+  data          MEDIUMBLOB      NOT NULL,
+  last_activity INT UNSIGNED    NOT NULL,
+  PRIMARY KEY (id),
+  KEY idx_sessions_activity (last_activity)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- reference data

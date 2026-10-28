@@ -1,0 +1,20 @@
+# Render Blueprint: creates the SkillSwap web service from the Dockerfile.
+# Render has no managed MySQL, so DATABASE_URL points at an external MySQL (see docs/DEPLOY.md).
+services:
+  - type: web
+    name: skillswap
+    runtime: docker
+    plan: free
+    region: singapore
+    healthCheckPath: /health.php
+    envVars:
+      - key: DATABASE_URL        # mysql://user:password@host:port/database?ssl-mode=REQUIRED
+        sync: false              # asked for when you create the Blueprint; never stored in git
+      - key: DB_SSL
+        value: "1"
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD      # 12+ characters; only used to create the first admin
+        sync: false
+      - key: ADMIN_NAME
+        value: Administrator

@@ -70,9 +70,6 @@ if (is_post()) {
             break;
         case 'delete':
             $pdo->prepare('DELETE FROM users WHERE id = ?')->execute([$target['id']]);
-            if ($target['avatar'] && avatar_url($target['avatar']) !== null) {
-                @unlink(AVATAR_DIR . basename($target['avatar']));
-            }
             audit_log('delete_user', 'user', (int) $target['id'], $label);
             flash('success', 'The account of ' . $target['name'] . ' and all their data were deleted.');
             break;

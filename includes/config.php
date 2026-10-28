@@ -41,17 +41,24 @@ if ($dbUrl !== null && ($parts = parse_url($dbUrl)) && !empty($parts['host'])) {
         'pass' => isset($parts['pass']) ? rawurldecode($parts['pass']) : null,
     ];
 }
+// Hosted MySQL services (Aiven, TiDB, PlanetScale...) require an encrypted connection. Enable it with DB_SSL=1,
+// or let a "?ssl-mode=REQUIRED" in the connection URL turn it on. Give DB_SSL_CA_PEM (the provider's CA
+// certificate text) to also verify the server's identity; without it the connection is encrypted but not verified.
+$sslFromUrl = isset($parts['query']) && preg_match('/(^|&)ssl-mode=(REQUIRED|VERIFY_CA|VERIFY_IDENTITY)/i', $parts['query']);
+define('DB_SSL', env('DB_SSL', '0') === '1' || $sslFromUrl);
+define('DB_SSL_CA_PEM', env('DB_SSL_CA_PEM'));
 define('DB_HOST', $db['host'] ?? env('DB_HOST') ?? env('MYSQLHOST', '127.0.0.1'));
 define('DB_PORT', (int) ($db['port'] ?? env('DB_PORT') ?? env('MYSQLPORT', '3306')));
 define('DB_NAME', $db['name'] ?: (env('DB_NAME') ?? env('MYSQLDATABASE', 'skillswap')));
 define('DB_USER', $db['user'] ?? env('DB_USER') ?? env('MYSQLUSER', 'root'));
 define('DB_PASS', $db['pass'] ?? env('DB_PASS') ?? env('MYSQLPASSWORD', ''));
 
-/* ---------- Uploads ---------- */
-// Profile photos. In a container, point UPLOAD_DIR at a persistent volume or they vanish on redeploy.
-$uploadDir = rtrim(env('UPLOAD_DIR', __DIR__ . '/../uploads/avatars'), '/\\');
-define('AVATAR_DIR', $uploadDir . DIRECTORY_SEPARATOR);
-define('AVATAR_MAX_BYTES', 2 * 1024 * 1024);
+/* ---------- Profile photos ---------- */
+// Photos are stored in the database (profiles.avatar_data), so the app keeps no files and survives
+// redeploys and restarts on any host. The browser shrinks photos before upload; this is the server-side cap.
+// AVATAR_DIR is only read by database/install.php to import photos saved by older versions.
+define('AVATAR_DIR', rtrim(env('UPLOAD_DIR', __DIR__ . '/../uploads/avatars'), '/\\') . DIRECTORY_SEPARATOR);
+define('AVATAR_MAX_BYTES', 1024 * 1024);
 
 /* ---------- Behaviour limits ---------- */
 define('SKILLS_PER_PAGE', 12);

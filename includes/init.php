@@ -6,6 +6,7 @@
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/helpers.php';
+require_once __DIR__ . '/session.php';
 require_once __DIR__ . '/ratelimit.php';
 require_once __DIR__ . '/csrf.php';
 require_once __DIR__ . '/auth.php';
@@ -36,9 +37,13 @@ set_exception_handler(function (Throwable $e): void {
 
 /* ---------- Session ---------- */
 if (session_status() === PHP_SESSION_NONE) {
+    $sessionLifetime = 60 * 60 * 24 * 7;
     ini_set('session.use_strict_mode', '1');
     ini_set('session.use_only_cookies', '1');
-    ini_set('session.gc_maxlifetime', (string) (60 * 60 * 24 * 7));
+    ini_set('session.gc_maxlifetime', (string) $sessionLifetime);
+    ini_set('session.gc_probability', '1');
+    ini_set('session.gc_divisor', '100');
+    session_set_save_handler(new DbSessionHandler($sessionLifetime), true);
     session_name('skillswap_session');
     session_set_cookie_params([
         'lifetime' => 0,

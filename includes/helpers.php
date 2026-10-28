@@ -150,8 +150,8 @@ function time_ago(string $datetime): string
 
 function avatar_url(?string $file): ?string
 {
-    if ($file && preg_match('/^[a-f0-9]{32}\.(jpg|png|webp)$/', $file) && is_file(AVATAR_DIR . $file)) {
-        // Served by avatar.php so the upload folder can live outside the web root (e.g. a Docker volume).
+    // The photo itself is stored in the database and streamed by avatar.php; the random name only identifies it.
+    if ($file && preg_match('/^[a-f0-9]{32}\.(jpg|png|webp)$/', $file)) {
         return 'avatar.php?f=' . $file;
     }
     return null;
