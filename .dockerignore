@@ -1,0 +1,9 @@
+.git
+.gitignore
+.gitattributes
+.dockerignore
+docker-compose.yml
+node_modules
+*.log
+uploads/avatars/*
+!uploads/avatars/.htaccess

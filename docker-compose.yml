@@ -1,0 +1,44 @@
+# Run the production image locally against a real MySQL 8:
+#   docker compose up --build
+# then open http://localhost:8080   (admin: admin@skillswap.test / the password below)
+# This is for trying the production setup on your own machine, not for deployment.
+services:
+  db:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: skillswap
+      MYSQL_USER: skillswap
+      MYSQL_PASSWORD: local-db-password
+      MYSQL_ROOT_PASSWORD: local-root-password
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-plocal-root-password"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - dbdata:/var/lib/mysql
+
+  app:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      APP_ENV: production
+      TRUST_PROXY: "0"          # no reverse proxy in front when testing locally
+      DB_HOST: db
+      DB_NAME: skillswap
+      DB_USER: skillswap
+      DB_PASS: local-db-password
+      ADMIN_EMAIL: admin@skillswap.test
+      ADMIN_PASSWORD: local-admin-pass-123
+      ADMIN_NAME: Local Admin
+      SEED_DEMO: "1"
+    volumes:
+      - avatars:/data/avatars
+
+volumes:
+  dbdata:
+  avatars:

@@ -1,0 +1,15 @@
+# Uploaded profile photos (keep the folder and its .htaccess)
+uploads/avatars/*
+!uploads/avatars/.htaccess
+
+# Secrets and local settings: never commit these
+.env
+.env.*
+*.pem
+
+# Logs, editor and OS files
+*.log
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

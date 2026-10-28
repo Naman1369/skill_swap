@@ -1,0 +1,11 @@
+# Apache settings for XAMPP / shared hosting (the Docker image uses docker/apache.conf instead)
+
+Options -Indexes
+ErrorDocument 403 /SkillSwap/404.php
+ErrorDocument 404 /SkillSwap/404.php
+
+# Block direct web access to internal folders and files
+RedirectMatch 404 ^/[^/]*/?(includes|database|docs|docker)/
+<FilesMatch "(\.(sql|md|sh|json|ini)$|^Dockerfile$)">
+    Require all denied
+</FilesMatch>

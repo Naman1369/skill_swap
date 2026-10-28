@@ -1,0 +1,9 @@
+# Uploaded files are images only: never execute anything in this folder
+Options -Indexes -ExecCGI
+<IfModule php_module>
+    php_flag engine off
+</IfModule>
+RemoveHandler .php .phtml .php3 .php4 .php5 .php7 .php8 .phar
+<FilesMatch "\.(?!(jpe?g|png|webp)$)[^.]+$">
+    Require all denied
+</FilesMatch>
